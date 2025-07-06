@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Construction Workload Manager</title>
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"
+    ></script>
+    <style>
+      /* RMIT Vietnam Color Palette */
+      :root {
+        --rmit-red: #e60028;
+        --dark-grey: #333333;
+        --medium-grey: #666666;
+        --light-grey: #f4f4f9;
+        --border-color: #dddddd;
+        --white: #ffffff;
+        --success-green: #28a745;
+      }
+
+      /* Basic Setup & Typography */
+      * {
+        -webkit-box-sizing: border-box;
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        background-color: rgb(248, 248, 248);
+        color: var(--dark-grey);
+        /* Removed flex properties, as the fixed header changes the layout approach */
+      }
+
+      /* --- MODIFIED: Header Bar Styling --- */
+      .header-bar {
+        background-color: black;
+        color: var(--white);
+        padding: 15px 40px;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: space-between;
+        justify-content: space-between;
+        -webkit-align-items: center;
+        align-items: center;
+        width: 100%;
+        -webkit-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+
+        /* New properties for fixed position */
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 900; /* Ensure it's above content but below modal */
+      }
+      .header-title {
+        font-size: 1.5em;
+        font-weight: 600;
+      }
+      /* Add this new rule here */
+      .header-title a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .header-title:hover {
+        opacity: 50%;
+      }
+
+      #about-btn {
+        font-size: 1.15em;
+        cursor: pointer;
+        -webkit-transition: color 0.2s;
+        transition: color 0.2s;
+      }
+      #about-btn:hover {
+        opacity: 50%;
+      }
+
+      /* --- MODIFIED: Main Content Area Styling --- */
+      .main-content {
+        display: -webkit-flex;
+        display: flex;
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+        padding: 40px 20px;
+        min-height: 100vh; /* Ensure it can fill the viewport */
+
+        /* New property to prevent content from hiding under the fixed header */
+        padding-top: 100px; /* Adjust this value based on header height + desired space */
+      }
+
+      .container {
+        background: var(--white);
+        padding: 30px 40px;
+        border-radius: 12px;
+        -webkit-box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        width: 98%;
+        height: 90%;
+        border: 1px solid var(--border-color);
+        margin-bottom: 40px; /* Add some space at the bottom */
+      }
+
+      h1,
+      h2 {
+        text-align: center;
+        color: var(--dark-grey);
+        margin-bottom: 25px;
+      }
+      h1 {
+        font-size: 2em;
+        font-weight: 600;
+        display: none; /* Main H1 is now in header */
+      }
+      h2 {
+        font-size: 1.75em;
+        font-weight: 500;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: var(--medium-grey);
+      }
+      input[type="text"],
+      input[type="number"],
+      input[type="email"],
+      input[type="datetime-local"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+        -webkit-transition: border-color 0.3s, -webkit-box-shadow 0.3s;
+        transition: border-color 0.3s, box-shadow 0.3s;
+      }
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      input[type="email"]:focus,
+      input[type="datetime-local"]:focus {
+        outline: none;
+        border-color: var(--rmit-red);
+        -webkit-box-shadow: 0 0 0 3px rgba(230, 0, 40, 0.1);
+        box-shadow: 0 0 0 3px rgba(230, 0, 40, 0.1);
+      }
+
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 8px;
+        background-color: var(--rmit-red);
+        color: var(--white);
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-transition: background-color 0.3s, -webkit-transform 0.1s;
+        transition: background-color 0.3s, transform 0.1s;
+      }
+      .btn:hover {
+        background-color: #c40021;
+      }
+      .btn:active {
+        -webkit-transform: scale(0.98);
+        transform: scale(0.98);
+      }
+      .btn:disabled {
+        background-color: var(--medium-grey);
+        cursor: not-allowed;
+      }
+
+      .table-container {
+        overflow-x: auto;
+      }
+      #task-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      #task-table th,
+      #task-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+      #task-table th {
+        background-color: var(--light-grey);
+        font-weight: 600;
+        color: var(--dark-grey);
+      }
+      #task-table tr:last-child td {
+        border-bottom: none;
+      }
+      #task-table input[type="checkbox"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        position: relative;
+        top: 4px;
+      }
+      #task-table input[type="checkbox"]:checked {
+        background-color: var(--success-green);
+        border-color: var(--success-green);
+      }
+      #task-table input[type="checkbox"]:checked::after {
+        content: "✔";
+        color: white;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        -webkit-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+        font-size: 14px;
+      }
+
+      .email-section {
+        margin-top: 30px;
+        border-top: 1px solid var(--border-color);
+        padding-top: 20px;
+        display: -webkit-flex;
+        display: flex;
+        -webkit-align-items: flex-end;
+        align-items: flex-end;
+        gap: 15px;
+      }
+      .email-section .form-group {
+        -webkit-flex-grow: 1;
+        flex-grow: 1;
+        margin-bottom: 0;
+      }
+      .email-section .btn {
+        width: auto;
+        padding: 12px 25px;
+      }
+      .hidden {
+        display: none;
+      }
+
+      .loading-spinner {
+        border: 5px solid var(--light-grey);
+        border-top: 5px solid var(--rmit-red);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        -webkit-animation: spin 1s linear infinite;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @-webkit-keyframes spin {
+        0% {
+          -webkit-transform: rotate(0deg);
+        }
+        100% {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* --- MODIFIED: Modal (Pop-up) Styling --- */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+
+        /* Black background with 80% opacity */
+        background-color: rgba(0, 0, 0, 0.8);
+
+        display: none; /* Hidden by default */
+        -webkit-justify-content: center;
+        justify-content: center;
+        -webkit-align-items: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      .modal-overlay.visible {
+        display: -webkit-flex;
+        display: flex;
+      }
+      .modal-content {
+        background-color: var(--white);
+        padding: 30px 40px;
+        border-radius: 12px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        -webkit-box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+      }
+      .modal-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: var(--medium-grey);
+        cursor: pointer;
+        -webkit-transition: color 0.2s;
+        transition: color 0.2s;
+      }
+      .modal-close-btn:hover {
+        color: var(--dark-grey);
+      }
+      .modal-content h3 {
+        font-size: 1.8em;
+        color: var(--dark-grey);
+        margin-bottom: 20px;
+      }
+      .modal-content h4 {
+        font-size: 1.3em;
+        color: var(--dark-grey);
+        margin-top: 25px;
+        margin-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 5px;
+      }
+      .modal-content p {
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header-bar">
+      <div class="header-title">
+        <a href="index.html">Construction Workload Manager</a>
+      </div>
+      <nav>
+        <span id="about-btn">About</span>
+      </nav>
+    </header>
+
+    <main class="main-content">
+      <div class="container">
+        <section id="input-page">
+          <h1>Construction Workload Manager</h1>
+          <h2>Project Details</h2>
+          <!-- New title for the input box -->
+          <form id="task-form">
+            <div class="form-group">
+              <label for="project-name">Project Name</label>
+              <input
+                type="text"
+                id="project-name"
+                value="RMIT Saigon South Campus Expansion"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="project-location"
+                >Project Location (e.g., "Ho Chi Minh City, Vietnam")</label
+              >
+              <input
+                type="text"
+                id="project-location"
+                value="Ho Chi Minh City"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="main-task">Today’s Main Task</label>
+              <input
+                type="text"
+                id="main-task"
+                value="Pouring concrete for foundation"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="num-workers">Number of Workers</label>
+              <input
+                type="number"
+                id="num-workers"
+                value="15"
+                min="1"
+                required
+              />
+            </div>
+            <button type="button" id="generate-btn" class="btn">
+              Generate AI-Assisted Tasks
+            </button>
+            <div id="loading-spinner" class="loading-spinner hidden"></div>
+          </form>
+        </section>
+
+        <section id="management-page" class="hidden">
+          <h2 id="management-title">Daily Workload</h2>
+          <div class="table-container">
+            <table id="task-table">
+              <thead>
+                <tr>
+                  <th>Deadline</th>
+                  <th>Task Description</th>
+                  <th>Completed</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="task-table-body"></tbody>
+            </table>
+          </div>
+          <div class="email-section">
+            <div class="form-group">
+              <label for="email-input">Send Notifications To:</label>
+              <input
+                type="email"
+                id="email-input"
+                placeholder="project.manager@example.com"
+                required
+              />
+            </div>
+            <button id="send-email-btn" class="btn">Send Full Summary</button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- NEW: "About" Modal HTML Structure -->
+    <div id="about-modal-overlay" class="modal-overlay">
+      <div class="modal-content">
+        <span id="close-modal-btn" class="modal-close-btn">×</span>
+        <h3>Welcome to Construction Workload Manager</h3>
+        <p>
+          Your smart companion for managing construction tasks efficiently and
+          intelligently.
+        </p>
+        <p>
+          This platform is designed to help site managers, supervisors, and team
+          leads in the construction industry keep track of daily work, assign
+          tasks, and get AI-powered suggestions—based on real-time weather and
+          your project's specific needs.
+        </p>
+
+        <h4>How to Use This Platform</h4>
+        <p>
+          <strong>Step 1: Input Project Details</strong><br />
+          On the first section of this page: Fill in the project name, location,
+          today’s tasks (like pouring concrete), and the number of workers
+          available. Click the “Generate Tasks” button. Our AI (powered by
+          Google Gemini and weather data from OpenWeatherMap) will analyze the
+          situation and suggest optimized tasks tailored to your conditions.
+        </p>
+
+        <p>
+          <strong>Step 2: Manage the Generated Workload</strong><br />
+          Once tasks are generated, you'll be taken to the management page: View
+          all assigned tasks with their deadlines and descriptions. Tick the
+          checkbox once a task is complete. Add notes if needed. Enter your
+          email address to receive real-time completion notifications and
+          reminders.
+        </p>
+
+        <p>
+          If a task isn't marked as done by the deadline, you'll get an
+          automatic alert so nothing gets forgotten.
+        </p>
+
+        <h4>Weather Awareness Built-In</h4>
+        <p>
+          Bad weather? No problem. We factor in weather forecasts to ensure your
+          construction plan stays safe, efficient, and realistic.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // --- API Key Section (remains the same) ---
+      // ####################################################################
+      // 🔴 START: PASTE YOUR API KEYS AND CREDENTIALS HERE 🔴
+      // ####################################################################
+      const openWeatherMapApiKey = "45eff77a05b2e67f501e6849087a266c";
+      const geminiApiKey = "AIzaSyCgGSP3MMOWM9BTxZu91PJyoby-HRTWQBc";
+      const emailJsConfig = {
+        serviceID: "service_pgfa7tp",
+        summaryTemplateID: "template_wmiffdc", // For the full list summary
+        notificationTemplateID: "template_90xjd82", // <-- PASTE THE MODIFIED TEMPLATE ID HERE
+        publicKey: "FMnfN1KvntVEAlvWR",
+      };
+      // ####################################################################
+      // 🔴 END: PASTE YOUR API KEYS AND CREDENTIALS HERE 🔴
+      // ####################################################################
+
+      // --- DOM Element References ---
+      const inputPage = document.getElementById("input-page");
+      const managementPage = document.getElementById("management-page");
+      const generateBtn = document.getElementById("generate-btn");
+      const loadingSpinner = document.getElementById("loading-spinner");
+      const taskTableBody = document.getElementById("task-table-body");
+      const managementTitle = document.getElementById("management-title");
+      const sendEmailBtn = document.getElementById("send-email-btn");
+      let reminderInterval;
+
+      // --- NEW: Modal DOM Elements ---
+      const aboutBtn = document.getElementById("about-btn");
+      const modalOverlay = document.getElementById("about-modal-overlay");
+      const closeModalBtn = document.getElementById("close-modal-btn");
+
+      // --- NEW: Modal Event Listeners ---
+      aboutBtn.addEventListener("click", () => {
+        modalOverlay.classList.add("visible");
+      });
+
+      closeModalBtn.addEventListener("click", () => {
+        modalOverlay.classList.remove("visible");
+      });
+
+      // Close modal if user clicks on the overlay background
+      modalOverlay.addEventListener("click", (event) => {
+        if (event.target === modalOverlay) {
+          modalOverlay.classList.remove("visible");
+        }
+      });
+
+      // --- All other JavaScript functions remain the same ---
+      function sendNotificationEmail(toEmail, subject, body) {
+        const templateParams = {
+          to_email: toEmail,
+          subject: subject,
+          body: body,
+        };
+        emailjs
+          .send(
+            emailJsConfig.serviceID,
+            emailJsConfig.notificationTemplateID,
+            templateParams,
+            emailJsConfig.publicKey
+          )
+          .then(
+            (response) => {
+              console.log(
+                `Notification ("${subject}") sent successfully!`,
+                response.status,
+                response.text
+              );
+            },
+            (error) => {
+              console.error("Failed to send notification email:", error);
+              alert(
+                `Failed to send notification: ${subject}. Please check your credentials and console.`
+              );
+            }
+          );
+      }
+      function handleTaskCompletion(taskRow) {
+        const toEmail = document.getElementById("email-input").value;
+        if (!toEmail) {
+          alert(
+            'Please enter an email address in the "Send Notifications To" field first.'
+          );
+          taskRow.querySelector(".task-completed").checked = false;
+          return;
+        }
+        const taskDescription =
+          taskRow.querySelector(".task-description").textContent;
+        const deadline = new Date(
+          taskRow.querySelector('input[type="datetime-local"]').value
+        ).toLocaleString();
+        const subject = `✅ Task Completed: ${taskDescription.substring(
+          0,
+          30
+        )}...`;
+        const body = `<h3>A task has been marked as complete for project: ${
+          document.getElementById("project-name").value
+        }</h3><p><strong>Task:</strong> ${taskDescription}</p><p><strong>Original Deadline:</strong> ${deadline}</p><p><strong>Completed At:</strong> ${new Date().toLocaleString()}</p><p>Great work!</p>`;
+        sendNotificationEmail(toEmail, subject, body);
+      }
+      taskTableBody.addEventListener("change", (event) => {
+        if (
+          event.target.classList.contains("task-completed") &&
+          event.target.checked
+        ) {
+          const taskRow = event.target.closest("tr");
+          handleTaskCompletion(taskRow);
+        }
+      });
+      function checkDeadlinesAndSendReminders(email) {
+        const rows = taskTableBody.querySelectorAll("tr");
+        const now = new Date();
+        rows.forEach((row) => {
+          const isCompleted = row.querySelector(".task-completed").checked;
+          const reminderSent =
+            row.getAttribute("data-reminder-sent") === "true";
+          if (!isCompleted && !reminderSent) {
+            const deadline = new Date(
+              row.querySelector('input[type="datetime-local"]').value
+            );
+            if (now > deadline) {
+              const taskDescription =
+                row.querySelector(".task-description").textContent;
+              const projectName = document.getElementById("project-name").value;
+              const subject = `🔴 REMINDER: Overdue Task for ${projectName}`;
+              const body = `<h3>A task is overdue for project: ${projectName}</h3><p><strong>Task:</strong> ${taskDescription}</p><p><strong>Deadline was:</strong> ${deadline.toLocaleString()}</p><p>Please complete this task or update its status immediately.</p>`;
+              sendNotificationEmail(email, subject, body);
+              row.setAttribute("data-reminder-sent", "true");
+            }
+          }
+        });
+      }
+      function handleSendEmail() {
+        const toEmail = document.getElementById("email-input").value;
+        if (!toEmail) {
+          alert("Please enter an email address.");
+          return;
+        }
+        const projectName = document.getElementById("project-name").value;
+        const location = document.getElementById("project-location").value;
+        let taskListHtml =
+          '<table style="width:100%; border-collapse: collapse;"><tr><th style="border:1px solid #ddd; padding:8px; text-align:left;">Deadline</th><th style="border:1px solid #ddd; padding:8px; text-align:left;">Task</th></tr>';
+        const rows = taskTableBody.querySelectorAll("tr");
+        rows.forEach((row) => {
+          const deadline = row.querySelector(
+            'input[type="datetime-local"]'
+          ).value;
+          const description =
+            row.querySelector(".task-description").textContent;
+          const formattedDeadline = new Date(deadline).toLocaleString();
+          taskListHtml += `<tr><td style="border:1px solid #ddd; padding:8px;">${formattedDeadline}</td><td style="border:1px solid #ddd; padding:8px;">${description}</td></tr>`;
+        });
+        taskListHtml += "</table>";
+        const templateParams = {
+          to_email: toEmail,
+          project_name: projectName,
+          location: location,
+          task_list_html: taskListHtml,
+        };
+        sendEmailBtn.textContent = "Sending...";
+        sendEmailBtn.disabled = true;
+        emailjs
+          .send(
+            emailJsConfig.serviceID,
+            emailJsConfig.summaryTemplateID,
+            templateParams,
+            emailJsConfig.publicKey
+          )
+          .then(
+            (response) => {
+              alert("Full summary email sent successfully!");
+              startReminderChecks(toEmail);
+            },
+            (error) => {
+              alert("Failed to send summary email. Check console for details.");
+              console.error("EmailJS Error:", error);
+            }
+          )
+          .finally(() => {
+            sendEmailBtn.textContent = "Send Full Summary";
+            sendEmailBtn.disabled = false;
+          });
+      }
+      async function handleGenerateTasks() {
+        if (!validateApiKeys()) return;
+        const projectName = document.getElementById("project-name").value;
+        const location = document.getElementById("project-location").value;
+        const mainTask = document.getElementById("main-task").value;
+        const numWorkers = document.getElementById("num-workers").value;
+        if (!projectName || !location || !mainTask || !numWorkers) {
+          alert("Please fill in all fields.");
+          return;
+        }
+        generateBtn.classList.add("hidden");
+        loadingSpinner.classList.remove("hidden");
+        try {
+          const weatherString = await getWeatherData(location);
+          if (!weatherString) {
+            throw new Error(
+              "Could not fetch weather data. Please check location and API key."
+            );
+          }
+          const prompt = constructGeminiPrompt(
+            projectName,
+            location,
+            mainTask,
+            numWorkers,
+            weatherString
+          );
+          const aiResponse = await getAiSuggestions(prompt);
+          populateTaskTable(aiResponse);
+          managementTitle.textContent = `Daily Workload for ${projectName}`;
+          inputPage.classList.add("hidden");
+          managementPage.classList.remove("hidden");
+        } catch (error) {
+          console.error("Error during task generation:", error);
+          alert(`An error occurred: ${error.message}`);
+        } finally {
+          generateBtn.classList.remove("hidden");
+          loadingSpinner.classList.add("hidden");
+        }
+      }
+      async function getWeatherData(location) {
+        const geoUrl = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(
+          location
+        )}&limit=1&appid=${openWeatherMapApiKey}`;
+        const geoResponse = await fetch(geoUrl);
+        if (!geoResponse.ok) throw new Error("Failed to geocode location.");
+        const geoData = await geoResponse.json();
+        if (geoData.length === 0) {
+          alert(`Location "${location}" not found. Please be more specific.`);
+          return null;
+        }
+        const { lat, lon } = geoData[0];
+        const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${openWeatherMapApiKey}&units=metric`;
+        const weatherResponse = await fetch(weatherUrl);
+        if (!weatherResponse.ok)
+          throw new Error("Failed to fetch weather data.");
+        const weatherData = await weatherResponse.json();
+        return `Temperature: ${weatherData.main.temp}°C, Condition: ${weatherData.weather[0].description}, Wind Speed: ${weatherData.wind.speed} m/s.`;
+      }
+      function constructGeminiPrompt(
+        projectName,
+        location,
+        mainTask,
+        numWorkers,
+        weatherString
+      ) {
+        return `You are an expert construction project manager assistant. Based on the following information, generate a list of 5 to 7 detailed, actionable sub-tasks for a construction team. Format the output as a simple list, with each task on a new line. Do NOT include any introductory or concluding text, titles, or bullet points. Just the list of tasks. Project Name: ${projectName}\nLocation: ${location}\nToday's Main Task: ${mainTask}\nNumber of Workers: ${numWorkers}\nCurrent Weather Conditions: ${weatherString}\nIMPORTANT: If the weather is unsuitable for the main task (e.g., rain for pouring concrete, high wind for crane operations), you MUST suggest alternative indoor tasks or safety-focused tasks instead. Do not suggest the original main task if weather makes it unsafe or impractical. List of sub-tasks:`;
+      }
+      async function getAiSuggestions(prompt) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`;
+        const requestBody = { contents: [{ parts: [{ text: prompt }] }] };
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("Gemini API Error:", errorData);
+          throw new Error(
+            `Gemini API request failed: ${
+              errorData.error?.message || response.statusText
+            }`
+          );
+        }
+        const data = await response.json();
+        if (!data.candidates || !data.candidates[0].content.parts[0].text) {
+          console.error("Invalid Gemini API response format:", data);
+          throw new Error(
+            "Received an invalid response from the AI. It might be due to safety settings or an API issue."
+          );
+        }
+        return data.candidates[0].content.parts[0].text;
+      }
+      function populateTaskTable(responseText) {
+        taskTableBody.innerHTML = "";
+        const tasks = responseText
+          .trim()
+          .split("\n")
+          .filter((task) => task.trim() !== "");
+        tasks.forEach((task, index) => {
+          const row = document.createElement("tr");
+          row.setAttribute("data-reminder-sent", "false");
+          const deadline = new Date(Date.now() + (2 + index) * 60 * 60 * 1000);
+          const deadlineString = deadline.toISOString().slice(0, 16);
+          row.innerHTML = `<td><input type="datetime-local" value="${deadlineString}"></td><td class="task-description">${task.trim()}</td><td><input type="checkbox" class="task-completed"></td><td><input type="text" placeholder="Add notes..."></td>`;
+          taskTableBody.appendChild(row);
+        });
+      }
+      function startReminderChecks(email) {
+        if (reminderInterval) {
+          clearInterval(reminderInterval);
+        }
+        alert("Automatic deadline reminders are now active for this session.");
+        reminderInterval = setInterval(() => {
+          checkDeadlinesAndSendReminders(email);
+        }, 60000);
+      }
+      function validateApiKeys() {
+        if (
+          openWeatherMapApiKey.includes("YOUR_") ||
+          geminiApiKey.includes("YOUR_") ||
+          emailJsConfig.serviceID.includes("YOUR_")
+        ) {
+          alert(
+            "CRITICAL: API keys are not set. Please edit the HTML file and add your keys to the script section."
+          );
+          return false;
+        }
+        return true;
+      }
+
+      generateBtn.addEventListener("click", handleGenerateTasks);
+      sendEmailBtn.addEventListener("click", handleSendEmail);
+    </script>
+  </body>
+</html>
